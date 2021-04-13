@@ -63,7 +63,7 @@ class SaveFeatures:
 
 
 class Viz:
-    def __init__(self, size=72, upscaling_steps=14, upscaling_factor=1.2, branch='alex'):
+    def __init__(self, size=72, upscaling_steps=16, upscaling_factor=1.2, branch='alex'):
         self.branch = branch
         self.size, self.upscaling_steps, self.upscaling_factor = size, upscaling_steps, upscaling_factor
         self.model = ResMem(pretrained=True).cuda().eval()
@@ -73,7 +73,7 @@ class Viz:
         self.output = None
         self.normer = Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 
-    def visualize(self, layer, filt, lr=0.01, opt_steps=20):
+    def visualize(self, layer, filt, lr=0.025, opt_steps=20):
         sz = self.size
         img = Image.fromarray(np.uint8(np.random.uniform(150, 180, (sz, sz, 3))))
         activations = SaveFeatures(list(self.target.children())[layer])
@@ -95,17 +95,18 @@ class Viz:
 
             sz = int(sz * self.upscaling_factor)
             img = ToPILImage()(img_var.squeeze(0))
-            img = img.resize((sz, sz))
-            img = img.filter(ImageFilter.BoxBlur(1))
+            if outer != self.upscaling_steps:
+                img = img.resize((sz, sz))
+                img = img.filter(ImageFilter.BoxBlur(4))
             self.output = img.copy()
         self.save(layer, filt)
         activations.close()
 
     def save(self, layer, filt):
         if self.branch == 'alex':
-            self.output.save(f'alex/layer_{layer}_filter_{filt}.png', 'PNG')
+            self.output.save(f'alex/layer_{layer}_filter_{filt}.jpg', 'JPEG')
         else:
-            self.output.save(f'resnet/layer_{layer}_filter_{filt}.png', 'PNG')
+            self.output.save(f'resnet/layer_{layer}_filter_{filt}.jpg', 'JPEG')
 
 
 if __name__ == '__main__':
