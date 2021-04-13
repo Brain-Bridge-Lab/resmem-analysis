@@ -17,6 +17,10 @@ transformer = transforms.Compose((
 
 cpu = torch.device('cpu')
 
+
+
+
+
 class ResMem(nn.Module):
     def __init__(self, learning_rate=1e-5, momentum=.9, cruise_altitude=384, pretrained=False):
         super().__init__()
@@ -69,11 +73,12 @@ class ResMem(nn.Module):
         cnv = f.relu(self.conv4(cnv))
         cnv = f.relu(self.conv5(cnv))
         cnv = self.pool5(cnv)
-        feat = cnv.view(-1, 9216)
         resfeat = self.features(x)
 
+        return cnv # Haxxed
         catfeat = torch.cat((feat, resfeat), 1)
 
+        feat = cnv.view(-1, 9216)
         hid = f.relu(self.fc6(catfeat))
         hid = self.drp6(hid)
         hid = f.relu(self.fc7(hid))
