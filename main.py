@@ -63,12 +63,20 @@ class SaveFeatures:
 
 
 class Viz:
-    def __init__(self, size=72, upscaling_steps=16, upscaling_factor=1.2, branch='alex'):
+    def __init__(self, size=67, upscaling_steps=16, upscaling_factor=1.2,
+                 branch='alex', rn_address=''):
         self.branch = branch
         self.size, self.upscaling_steps, self.upscaling_factor = size, upscaling_steps, upscaling_factor
         self.model = ResMem(pretrained=True).cuda().eval()
         if self.branch == 'resnet':
-            self.target = list(list(self.model.features.children())[7].children())[1]
+            assert rn_address
+            self.rn_address = rn_address
+            # ResNet 151 is defined fractally (wouldn't you? it's huge), so we have to make a little
+            # addressing system for now.
+            address = rn_address.split('-')
+            top = int(address[0])
+            second = int(address[1])
+            self.target = list(list(self.model.features.children())[top].children())[second]
 
         self.output = None
         self.normer = Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
@@ -97,7 +105,7 @@ class Viz:
             img = ToPILImage()(img_var.squeeze(0))
             if outer != self.upscaling_steps:
                 img = img.resize((sz, sz))
-                img = img.filter(ImageFilter.BoxBlur(4))
+                img = img.filter(ImageFilter.BoxBlur(5))
             self.output = img.copy()
         self.save(layer, filt)
         activations.close()
@@ -106,10 +114,9 @@ class Viz:
         if self.branch == 'alex':
             self.output.save(f'alex/layer_{layer}_filter_{filt}.jpg', 'JPEG')
         else:
-            self.output.save(f'resnet/layer_{layer}_filter_{filt}.jpg', 'JPEG')
+            self.output.save(f'resnet/layer_{self.rn_address}-{layer}_filter_{filt}.jpg', 'JPEG')
 
 
 if __name__ == '__main__':
-    vis = Viz(branch='resnet')
-    for i in range(500):
-        vis.visualize(0, i)
+    vis = Viz(branch='resnet', rn_address='6-30')
+    vis.visualize(0, 50)
