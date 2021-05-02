@@ -68,6 +68,7 @@ class Viz:
         self.branch = branch
         self.size, self.upscaling_steps, self.upscaling_factor = size, upscaling_steps, upscaling_factor
         self.model = ResMem(pretrained=True).cuda().eval()
+        self.target = self.model
         if self.branch == 'resnet':
             assert rn_address
             self.rn_address = rn_address
@@ -81,13 +82,13 @@ class Viz:
         self.output = None
         self.normer = Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 
-    def visualize(self, layer, filt, lr=0.025, opt_steps=20):
+    def visualize(self, layer, filt, lr=1e-3, opt_steps=96):
         sz = self.size
         img = Image.fromarray(np.uint8(np.random.uniform(150, 180, (sz, sz, 3))))
         activations = SaveFeatures(list(self.target.children())[layer])
         gaussian_filter = get_gaussian_kernel()
         self.model.zero_grad()
-        for outer in tqdm(range(self.upscaling_steps)):
+        for outer in tqdm(range(self.upscaling_steps), leave=False):
             img_var = torch.unsqueeze(ToTensor()(img), 0).cuda().requires_grad_(True)
             img_var.requires_grad_(True).cuda()
             optimizer = torch.optim.Adam([img_var], lr=lr, weight_decay=1e-6)
@@ -105,7 +106,7 @@ class Viz:
             img = ToPILImage()(img_var.squeeze(0))
             if outer != self.upscaling_steps:
                 img = img.resize((sz, sz))
-                img = img.filter(ImageFilter.BoxBlur(5))
+                img = img.filter(ImageFilter.BoxBlur(2))
             self.output = img.copy()
         self.save(layer, filt)
         activations.close()
@@ -118,5 +119,12 @@ class Viz:
 
 
 if __name__ == '__main__':
-    vis = Viz(branch='resnet', rn_address='6-30')
-    vis.visualize(0, 50)
+    vis = Viz(branch='alex')
+    i = 0
+    while True:
+        try:
+            tqdm.write(f'Layer: {0}. Filter: {i} \r')
+            vis.visualize(4, i)
+            i += 1
+        except IndexError:
+            break
