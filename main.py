@@ -119,12 +119,12 @@ class Viz:
 
 
 if __name__ == '__main__':
-    vis = Viz(branch='alex')
+    vis = Viz(branch='resnet', rn_address='5-0')
     i = 0
     while True:
         try:
             tqdm.write(f'Layer: {0}. Filter: {i} \r')
-            vis.visualize(4, i)
+            vis.visualize(2, i)
             i += 1
         except IndexError:
             break
