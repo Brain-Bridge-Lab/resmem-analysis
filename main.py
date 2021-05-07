@@ -82,7 +82,7 @@ class Viz:
         self.output = None
         self.normer = Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 
-    def visualize(self, layer, filt, lr=1e-3, opt_steps=96):
+    def visualize(self, layer, filt, lr=1e-2, opt_steps=36):
         sz = self.size
         img = Image.fromarray(np.uint8(np.random.uniform(150, 180, (sz, sz, 3))))
         activations = SaveFeatures(list(self.target.children())[layer])
@@ -119,12 +119,12 @@ class Viz:
 
 
 if __name__ == '__main__':
-    vis = Viz(branch='resnet', rn_address='5-0')
+    vis = Viz(branch='resnet', rn_address='4-1')
     i = 0
     while True:
         try:
             tqdm.write(f'Layer: {0}. Filter: {i} \r')
-            vis.visualize(2, i)
+            vis.visualize(0, i)
             i += 1
         except IndexError:
             break
