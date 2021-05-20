@@ -1,7 +1,8 @@
-
 from resmem import ResMem, transformer
+from datasets import LamemDataset, MemCatDataset
 import torch
 from torch import nn
+from torch.utils.data import ConcatDataset, DataLoader, random_split
 from torch.autograd import Variable
 from torchvision.transforms import ToPILImage, ToTensor, Normalize
 from PIL import Image, ImageFilter
@@ -118,13 +119,60 @@ class Viz:
             self.output.save(f'resnet/layer_{self.rn_address}-{layer}_filter_{filt}.jpg', 'JPEG')
 
 
+class ImgActivations:
+    def __init__(self, branch='alex', rn_address=''):
+        self.branch = branch
+        self.model = ResMem(pretrained=True).cuda().eval()
+        self.target = self.model
+        mc = MemCatDataset()
+        lm = LamemDataset()
+        dset = ConcatDataset((mc, lm))
+        # Just for testing:
+        dset, _ = random_split(mc, [1000, 9000])
+        self.output = []
+        self.dset = DataLoader(dset, batch_size=1, pin_memory=True)
+        if self.branch == 'resnet':
+            assert rn_address
+            self.rn_address = rn_address
+            # ResNet 151 is defined fractally (wouldn't you? it's huge), so we have to make a little
+            # addressing system for now.
+            address = rn_address.split('-')
+            top = int(address[0])
+            second = int(address[1])
+            self.layer = int(address[2])
+            self.target = list(list(self.model.features.children())[top].children())[second]
+
+    def calculate(self, filt):
+        pbar = tqdm(self.dset, total=len(self.dset))
+        activations = SaveFeatures(list(self.target.children())[self.layer])
+        levels = []
+        names = []
+        for img in pbar:
+            x, y, name = img
+            self.model(x.cuda().view(-1, 3, 227, 227))
+            levels.append(activations.features[0, filt].mean().detach().cpu())
+            names.append(name)
+
+        self.output = np.array(names)[np.argsort(levels)[-9:]].flatten()
+
+    def draw(self):
+        fig = plt.figure(figsize=(10, 10))
+        rows = 3
+        cols = 3
+
+        imdict = {i: Image.open(loc) for i, loc in enumerate(self.output)}
+
+        for i in imdict:
+            fig.add_subplot(rows, cols, i+1)
+
+            plt.imshow(imdict[i])
+            plt.axis('off')
+
+        plt.show()
+
+
 if __name__ == '__main__':
-    vis = Viz(branch='resnet', rn_address='4-1')
-    i = 0
-    while True:
-        try:
-            tqdm.write(f'Layer: {0}. Filter: {i} \r')
-            vis.visualize(0, i)
-            i += 1
-        except IndexError:
-            break
+    act = ImgActivations(branch='resnet', rn_address='6-15-0')
+    act.calculate(1)
+    act.draw()
+
