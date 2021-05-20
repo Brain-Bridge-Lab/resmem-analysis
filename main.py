@@ -1,11 +1,13 @@
 from resmem import ResMem, transformer
 from datasets import LamemDataset, MemCatDataset
 import torch
+import shutil
 from torch import nn
 from torch.utils.data import ConcatDataset, DataLoader, random_split
 from torch.autograd import Variable
 from torchvision.transforms import ToPILImage, ToTensor, Normalize
 from PIL import Image, ImageFilter
+import os
 from tqdm import tqdm
 from matplotlib import pyplot as plt
 import numpy as np
@@ -132,6 +134,7 @@ class Viz:
             self.output.save(f'resnet/layer_{self.rn_address}-{layer}_filter_{filt}.jpg', 'JPEG')
 
 
+
 class ImgActivations:
     def __init__(self, branch='alex', rn_address=''):
         self.branch = branch
@@ -141,7 +144,7 @@ class ImgActivations:
         lm = LamemDataset()
         dset = ConcatDataset((mc, lm))
         # Just for testing:
-        # dset, _ = random_split(mc, [100, 9900])
+        dset, _ = random_split(mc, [100, 9900])
         self.output = []
         self.dset = DataLoader(dset, batch_size=1, pin_memory=True)
         if self.branch == 'resnet':
@@ -169,20 +172,11 @@ class ImgActivations:
         self.output = np.array(names)[np.argsort(levels)[-9:]].flatten()
 
     def draw(self):
-        fig = plt.figure(figsize=(10, 10))
-        rows = 3
-        cols = 3
-
-        imdict = {i: Image.open(loc) for i, loc in enumerate(self.output)}
-
-        for i in imdict:
-            fig.add_subplot(rows, cols, i+1)
-            fig.tight_layout()
-
-            plt.imshow(imdict[i])
-            plt.axis('off')
-
-        plt.savefig(f'./figs/{rn_address}-{filt}.png')
+        if not os.path.exists(f'./figs/{rn_address}-{filt}'):
+            os.mkdir(f'./figs/{rn_address}-{filt}')
+        for f in self.output:
+            shortfname = f.split('/')[-1]
+            shutil.copy2(f, f'./figs/{rn_address}-{filt}/'+shortfname)
 
 
 if __name__ == '__main__':
