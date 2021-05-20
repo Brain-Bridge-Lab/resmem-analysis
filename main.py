@@ -141,7 +141,7 @@ class ImgActivations:
         lm = LamemDataset()
         dset = ConcatDataset((mc, lm))
         # Just for testing:
-        dset, _ = random_split(mc, [100, 9900])
+        # dset, _ = random_split(mc, [100, 9900])
         self.output = []
         self.dset = DataLoader(dset, batch_size=1, pin_memory=True)
         if self.branch == 'resnet':
@@ -178,7 +178,6 @@ class ImgActivations:
         for i in imdict:
             fig.add_subplot(rows, cols, i+1)
             fig.tight_layout()
-            plt.subplots_adjust(wspace=0.01, hspace=0.01)
 
             plt.imshow(imdict[i])
             plt.axis('off')
