@@ -10,7 +10,20 @@ from tqdm import tqdm
 from matplotlib import pyplot as plt
 import numpy as np
 import math
+import argparse
 
+ap = argparse.ArgumentParser()
+ap.add_argument('address', type=str)
+ap.add_argument('filt', type=int)
+ap.add_argument('--alternate', action='store_true')
+
+ORDINAL = 0
+
+args = ap.parse_args()
+if args.alternate:
+    ORDINAL = 1
+rn_address = args.address
+filt = args.filt
 
 def get_gaussian_kernel(kernel_size=3, sigma=1, channels=3):
     """
@@ -20,7 +33,7 @@ def get_gaussian_kernel(kernel_size=3, sigma=1, channels=3):
     x_coord = torch.arange(kernel_size)
     x_grid = x_coord.repeat(kernel_size).view(kernel_size, kernel_size)
     y_grid = x_grid.t()
-    xy_grid = torch.stack([x_grid, y_grid], dim=-1).float().cuda()
+    xy_grid = torch.stack([x_grid, y_grid], dim=-1).float().cuda(ORDINAL)
 
     mean = (kernel_size - 1) / 2.
     variance = sigma ** 2.
@@ -40,11 +53,11 @@ def get_gaussian_kernel(kernel_size=3, sigma=1, channels=3):
     # Reshape to 2d depthwise convolutional weight
     gaussian_kernel = gaussian_kernel.view(1, 1, kernel_size, kernel_size)
     gaussian_kernel = gaussian_kernel.repeat(channels, 1, 1, 1)
-    gaussian_kernel.cuda()
+    gaussian_kernel.cuda(ORDINAL)
 
     gaussian_filter = nn.Conv2d(in_channels=channels, out_channels=channels,
                                 kernel_size=kernel_size, groups=channels, bias=False)
-    gaussian_filter.cuda()
+    gaussian_filter.cuda(ORDINAL)
     gaussian_filter.weight.data = gaussian_kernel
     gaussian_filter.weight.requires_grad = False
 
@@ -57,7 +70,7 @@ class SaveFeatures:
         self.features = object()
 
     def hook_fn(self, module, i, output):
-        self.features = output.clone().requires_grad_(True).cuda()
+        self.features = output.clone().requires_grad_(True).cuda(ORDINAL)
 
     def close(self):
         self.hook.remove()
@@ -68,7 +81,7 @@ class Viz:
                  branch='alex', rn_address=''):
         self.branch = branch
         self.size, self.upscaling_steps, self.upscaling_factor = size, upscaling_steps, upscaling_factor
-        self.model = ResMem(pretrained=True).cuda().eval()
+        self.model = ResMem(pretrained=True).cuda(ORDINAL).eval()
         self.target = self.model
         if self.branch == 'resnet':
             assert rn_address
@@ -90,8 +103,8 @@ class Viz:
         gaussian_filter = get_gaussian_kernel()
         self.model.zero_grad()
         for outer in tqdm(range(self.upscaling_steps), leave=False):
-            img_var = torch.unsqueeze(ToTensor()(img), 0).cuda().requires_grad_(True)
-            img_var.requires_grad_(True).cuda()
+            img_var = torch.unsqueeze(ToTensor()(img), 0).cuda(ORDINAL).requires_grad_(True)
+            img_var.requires_grad_(True).cuda(ORDINAL)
             optimizer = torch.optim.Adam([img_var], lr=lr, weight_decay=1e-6)
 
             pbar = tqdm(range(opt_steps), leave=False)
@@ -122,13 +135,13 @@ class Viz:
 class ImgActivations:
     def __init__(self, branch='alex', rn_address=''):
         self.branch = branch
-        self.model = ResMem(pretrained=True).cuda().eval()
+        self.model = ResMem(pretrained=True).cuda(ORDINAL).eval()
         self.target = self.model
         mc = MemCatDataset()
         lm = LamemDataset()
         dset = ConcatDataset((mc, lm))
         # Just for testing:
-        dset, _ = random_split(mc, [1000, 9000])
+        dset, _ = random_split(mc, [100, 9900])
         self.output = []
         self.dset = DataLoader(dset, batch_size=1, pin_memory=True)
         if self.branch == 'resnet':
@@ -149,7 +162,7 @@ class ImgActivations:
         names = []
         for img in pbar:
             x, y, name = img
-            self.model(x.cuda().view(-1, 3, 227, 227))
+            self.model(x.cuda(ORDINAL).view(-1, 3, 227, 227))
             levels.append(activations.features[0, filt].mean().detach().cpu())
             names.append(name)
 
@@ -164,15 +177,17 @@ class ImgActivations:
 
         for i in imdict:
             fig.add_subplot(rows, cols, i+1)
+            fig.tight_layout()
+            plt.subplots_adjust(wspace=0.01, hspace=0.01)
 
             plt.imshow(imdict[i])
             plt.axis('off')
 
-        plt.show()
+        plt.savefig(f'./figs/{rn_address}-{filt}.png')
 
 
 if __name__ == '__main__':
-    act = ImgActivations(branch='resnet', rn_address='6-15-0')
-    act.calculate(1)
+    act = ImgActivations(branch='resnet', rn_address=rn_address)
+    act.calculate(filt)
     act.draw()
 
