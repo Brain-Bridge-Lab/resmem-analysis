@@ -144,7 +144,7 @@ class ImgActivations:
         lm = LamemDataset()
         dset = ConcatDataset((mc, lm))
         # Just for testing:
-        dset, _ = random_split(mc, [100, 9900])
+        # dset, _ = random_split(mc, [100, 9900])
         self.output = []
         self.dset = DataLoader(dset, batch_size=1, pin_memory=True)
         if self.branch == 'resnet':
