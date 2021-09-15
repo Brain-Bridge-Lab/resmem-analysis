@@ -1,5 +1,5 @@
 ## ResMem Analysis
 
+This repository holds all of the code necessary for creating the feature visualizations in [_Embracing New Techniques in Deep Learning for Estimating Image Memorability_](https://arxiv.org/abs/2105.10598).
 
-Here we're doing some feature analysis on ResMem, there's also a special version of the package `__init__` that
-implements all of the weird feature hooking stuff we need.
+This repository is provided for informational purposes and is not considered distribution-ready. A large number of visualizations are provided in the resnet folder, and are also stored on [OSF](https://osf.io/qf5ry/). These are provided as a starting point if any future researchers would like to investigate the features used by ResMem to estimate image memorability.
